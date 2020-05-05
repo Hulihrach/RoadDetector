@@ -17,7 +17,7 @@ from tensorflow.python.client import device_lib
 from tools.mul_img_utils import stretch_8bit
 
 import numpy as np
-from keras.preprocessing.image import flip_axis
+# from keras.preprocessing.image import flip_axis
 from tqdm import tqdm
 
 from models import make_model
@@ -80,20 +80,20 @@ networks = [
 
 
 
-def do_tta(x, tta_types):
-    if 'hflip' in tta_types:
-        x = flip_axis(x, 1)
-    if 'vflip' in tta_types:
-        x = flip_axis(x, 0)
-    return x
-
-
-def undo_tta(x, tta_types):
-    if 'hflip' in tta_types:
-        x = flip_axis(x, 1)
-    if 'vflip' in tta_types:
-        x = flip_axis(x, 0)
-    return x
+# def do_tta(x, tta_types):
+#     if 'hflip' in tta_types:
+#         x = flip_axis(x, 1)
+#     if 'vflip' in tta_types:
+#         x = flip_axis(x, 0)
+#     return x
+#
+#
+# def undo_tta(x, tta_types):
+#     if 'hflip' in tta_types:
+#         x = flip_axis(x, 1)
+#     if 'vflip' in tta_types:
+#         x = flip_axis(x, 0)
+#     return x
 
 
 gpus = [x.name for x in device_lib.list_local_devices() if x.name[:4] == '/gpu']
@@ -176,14 +176,14 @@ def predict_all_models():
                         break
 
                     preds = []
-                    for tta in [None, 'hflip', 'vflip', 'hflip+vflip']:
-                        ttas = []
-                        if tta:
-                            ttas = tta.split("+")
-                        img = do_tta(image, ttas)
-                        pred = model.predict(np.expand_dims(img, axis=0), batch_size=1, verbose=0)[0]
-                        pred = undo_tta(pred, ttas)
-                        preds.append(pred)
+                    # for tta in [None, 'hflip', 'vflip', 'hflip+vflip']:
+                        # ttas = []
+                        # if tta:
+                        #     ttas = tta.split("+")
+                        # img = do_tta(image, ttas)
+                    pred = model.predict(np.expand_dims(image, axis=0), batch_size=1, verbose=0)[0]
+                        # pred = undo_tta(pred, ttas)
+                    preds.append(pred)
                     mask = np.average(np.array(preds), axis=0)
                     all_masks_dir = "all_masks"
                     os.makedirs(all_masks_dir, exist_ok=True)

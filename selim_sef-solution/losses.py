@@ -1,6 +1,7 @@
-import keras.backend as K
+import tensorflow.keras.backend as K
+import tensorflow as tf
 from keras.backend.tensorflow_backend import _to_tensor
-from keras.losses import mean_squared_error
+from tensorflow.keras.losses import mean_squared_error
 import numpy as np
 
 
@@ -22,15 +23,15 @@ def bootstrapped_crossentropy(y_true, y_pred, bootstrap_type='hard', alpha=0.95)
     target_tensor = y_true
     prediction_tensor = y_pred
     _epsilon = _to_tensor(K.epsilon(), prediction_tensor.dtype.base_dtype)
-    prediction_tensor = K.tf.clip_by_value(prediction_tensor, _epsilon, 1 - _epsilon)
-    prediction_tensor = K.tf.log(prediction_tensor / (1 - prediction_tensor))
+    prediction_tensor = tf.clip_by_value(prediction_tensor, _epsilon, 1 - _epsilon)
+    prediction_tensor = tf.log(prediction_tensor / (1 - prediction_tensor))
 
     if bootstrap_type == 'soft':
-        bootstrap_target_tensor = alpha * target_tensor + (1.0 - alpha) * K.tf.sigmoid(prediction_tensor)
+        bootstrap_target_tensor = alpha * target_tensor + (1.0 - alpha) * tf.sigmoid(prediction_tensor)
     else:
-        bootstrap_target_tensor = alpha * target_tensor + (1.0 - alpha) * K.tf.cast(
-            K.tf.sigmoid(prediction_tensor) > 0.5, K.tf.float32)
-    return K.mean(K.tf.nn.sigmoid_cross_entropy_with_logits(
+        bootstrap_target_tensor = alpha * target_tensor + (1.0 - alpha) * tf.cast(
+            tf.sigmoid(prediction_tensor) > 0.5, tf.float32)
+    return K.mean(tf.nn.sigmoid_cross_entropy_with_logits(
         labels=bootstrap_target_tensor, logits=prediction_tensor))
 
 
@@ -41,8 +42,8 @@ def ceneterline_loss(y, p):
 
 def get_eroded(y):
     structure = np.asarray(np.zeros((3, 3, 1)), dtype="float32")
-    filter = K.tf.constant(structure, dtype="float32")
-    erosion = K.tf.nn.erosion2d(y, strides=[1, 1, 1, 1], rates=[1, 5, 5, 1], kernel=filter, padding='SAME')
+    filter = tf.constant(structure, dtype="float32")
+    erosion = tf.nn.erosion2d(y, strides=[1, 1, 1, 1], rates=[1, 5, 5, 1], kernel=filter, padding='SAME')
     return erosion
 
 def dice_coef_loss(y_true, y_pred):

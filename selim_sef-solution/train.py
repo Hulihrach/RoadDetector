@@ -2,6 +2,7 @@ import gc
 import os
 
 import numpy as np
+import lucid.modelzoo.vision_models as vm
 
 from model_name_encoder import encode_params
 from params import args
@@ -14,13 +15,13 @@ from tools.clr import CyclicLR
 
 from sklearn.model_selection._split import KFold
 
-from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
-from keras.optimizers import RMSprop, Adam, SGD
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
+from tensorflow.keras.optimizers import RMSprop, Adam, SGD
 
 from losses import make_loss, dice_coef_clipped, binary_crossentropy, dice_coef, ceneterline_loss
 from models import make_model
 from params import args
-import keras.backend as K
+import tensorflow.keras.backend as K
 
 def freeze_model(model, freeze_before_layer):
     if freeze_before_layer == "ALL":
@@ -41,137 +42,154 @@ def main():
     else:
         print('Using full size images')
 
-    all_ids = np.array(generate_ids(args.data_dirs, args.clahe))
-    np.random.seed(args.seed)
-    kfold = KFold(n_splits=args.n_folds, shuffle=True)
+    with K.get_session().as_default():
+        # K.set_session(sess)
 
-    splits = [s for s in kfold.split(all_ids)]
-    folds = [int(f) for f in args.fold.split(",")]
-    for fold in folds:
-        encoded_alias = encode_params(args.clahe, args.preprocessing_function, args.stretch_and_mean)
-        city = "all"
-        if args.city:
-            city = args.city.lower()
-        best_model_file = '{}/{}_{}_{}.h5'.format(args.models_dir, encoded_alias, city, args.network)
-        channels = 8
-        if args.ohe_city:
-            channels = 12
-        model = make_model(args.network, (None, None, channels))
+        all_ids = np.array(generate_ids(args.data_dirs, args.clahe))
+        np.random.seed(args.seed)
+        kfold = KFold(n_splits=args.n_folds, shuffle=True)
 
-        if args.weights is None:
-            print('No weights passed, training from scratch')
-        else:
-            print('Loading weights from {}'.format(args.weights))
-            model.load_weights(args.weights, by_name=True)
-        freeze_model(model, args.freeze_till_layer)
+        splits = [s for s in kfold.split(all_ids)]
+        folds = [int(f) for f in args.fold.split(",")]
+        for fold in folds:
+            encoded_alias = encode_params(args.clahe, args.preprocessing_function, args.stretch_and_mean)
+            city = "all"
+            if args.city:
+                city = args.city.lower()
+            best_model_file = '{}/{}_{}_{}.h5'.format(args.models_dir, encoded_alias, city, args.network)
+            channels = 3
+            # if args.ohe_city:
+            #     channels = 12
+            model = make_model(args.network, (args.crop_size, args.crop_size, channels))
 
-        optimizer = RMSprop(lr=args.learning_rate)
-        if args.optimizer:
-            if args.optimizer == 'rmsprop':
-                optimizer = RMSprop(lr=args.learning_rate)
-            elif args.optimizer == 'adam':
-                optimizer = Adam(lr=args.learning_rate)
-            elif args.optimizer == 'sgd':
-                optimizer = SGD(lr=args.learning_rate, momentum=0.9, nesterov=True)
+            if args.weights is None:
+                print('No weights passed, training from scratch')
+            else:
+                print('Loading weights from {}'.format(args.weights))
+                model.load_weights(args.weights, by_name=True)
+            freeze_model(model, args.freeze_till_layer)
 
-        train_ind, test_ind = splits[fold]
-        train_ids = all_ids[train_ind]
-        val_ids = all_ids[test_ind]
-        if args.city:
-            val_ids = [id for id in val_ids if args.city in id[0]]
-            train_ids = [id for id in train_ids if args.city in id[0]]
-        print('Training fold #{}, {} in train_ids, {} in val_ids'.format(fold, len(train_ids), len(val_ids)))
-        masks_gt = get_groundtruth(args.data_dirs)
-        if args.clahe:
-            template = 'CLAHE-MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
-        else:
-            template = 'MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
+            optimizer = RMSprop(lr=args.learning_rate)
+            if args.optimizer:
+                if args.optimizer == 'rmsprop':
+                    optimizer = RMSprop(lr=args.learning_rate)
+                elif args.optimizer == 'adam':
+                    optimizer = Adam(lr=args.learning_rate)
+                elif args.optimizer == 'sgd':
+                    optimizer = SGD(lr=args.learning_rate, momentum=0.9, nesterov=True)
 
-        train_generator = MULSpacenetDataset(
-            data_dirs=args.data_dirs,
-            wdata_dir=args.wdata_dir,
-            clahe=args.clahe,
-            batch_size=args.batch_size,
-            image_ids=train_ids,
-            masks_dict=masks_gt,
-            image_name_template=template,
-            seed=args.seed,
-            ohe_city=args.ohe_city,
-            stretch_and_mean=args.stretch_and_mean,
-            preprocessing_function=args.preprocessing_function,
-            crops_per_image=args.crops_per_image,
-            crop_shape=(args.crop_size, args.crop_size),
-            random_transformer=RandomTransformer(horizontal_flip=True, vertical_flip=True),
-        )
+            train_ind, test_ind = splits[fold]
+            train_ids = all_ids[train_ind]
+            val_ids = all_ids[test_ind]
+            if args.city:
+                val_ids = [id for id in val_ids if args.city in id[0]]
+                train_ids = [id for id in train_ids if args.city in id[0]]
+            print('Training fold #{}, {} in train_ids, {} in val_ids'.format(fold, len(train_ids), len(val_ids)))
+            masks_gt = get_groundtruth(args.data_dirs)
+            # if args.clahe:
+            #     template = 'CLAHE-MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
+            # else:
+            #     template = 'MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
+            template = 'PS-RGB/SN3_roads_train_AOI_5_Khartoum_PS-RGB_{id}.tif'
 
-        val_generator = MULSpacenetDataset(
-            data_dirs=args.data_dirs,
-            wdata_dir=args.wdata_dir,
-            clahe=args.clahe,
-            batch_size=1,
-            image_ids=val_ids,
-            image_name_template=template,
-            masks_dict=masks_gt,
-            seed=args.seed,
-            ohe_city=args.ohe_city,
-            stretch_and_mean=args.stretch_and_mean,
-            preprocessing_function=args.preprocessing_function,
-            shuffle=False,
-            crops_per_image=1,
-            crop_shape=(1280, 1280),
-            random_transformer=None
-        )
-        best_model = ModelCheckpoint(filepath=best_model_file, monitor='val_dice_coef_clipped',
-                                     verbose=1,
-                                     mode='max',
-                                     save_best_only=False,
-                                     save_weights_only=True)
-        model.compile(loss=make_loss(args.loss_function),
-                      optimizer=optimizer,
-                      metrics=[dice_coef, binary_crossentropy, ceneterline_loss, dice_coef_clipped])
+            train_generator = MULSpacenetDataset(
+                data_dirs=args.data_dirs,
+                wdata_dir=args.wdata_dir,
+                clahe=args.clahe,
+                batch_size=args.batch_size,
+                image_ids=train_ids,
+                masks_dict=masks_gt,
+                image_name_template=template,
+                seed=args.seed,
+                ohe_city=args.ohe_city,
+                stretch_and_mean=args.stretch_and_mean,
+                preprocessing_function=args.preprocessing_function,
+                crops_per_image=args.crops_per_image,
+                crop_shape=(args.crop_size, args.crop_size),
+                random_transformer=RandomTransformer(horizontal_flip=True, vertical_flip=True),
+            )
 
-        def schedule_steps(epoch, steps):
-            for step in steps:
-                if step[1] > epoch:
-                    print("Setting learning rate to {}".format(step[0]))
-                    return step[0]
-            print("Setting learning rate to {}".format(steps[-1][0]))
-            return steps[-1][0]
+            val_generator = MULSpacenetDataset(
+                data_dirs=args.data_dirs,
+                wdata_dir=args.wdata_dir,
+                clahe=args.clahe,
+                batch_size=1,
+                image_ids=val_ids,
+                image_name_template=template,
+                masks_dict=masks_gt,
+                seed=args.seed,
+                ohe_city=args.ohe_city,
+                stretch_and_mean=args.stretch_and_mean,
+                preprocessing_function=args.preprocessing_function,
+                shuffle=False,
+                crops_per_image=1,
+                crop_shape=(args.crop_size, args.crop_size),
+                random_transformer=None
+            )
+            best_model = ModelCheckpoint(filepath=best_model_file, monitor='val_dice_coef_clipped',
+                                         verbose=1,
+                                         mode='max',
+                                         save_best_only=False,
+                                         save_weights_only=False)
 
-        callbacks = [best_model, EarlyStopping(patience=20, verbose=1, monitor='val_dice_coef_clipped', mode='max')]
+            model.compile(loss=make_loss(args.loss_function),
+                          optimizer=optimizer,
+                          metrics=[dice_coef, binary_crossentropy, ceneterline_loss, dice_coef_clipped])
 
-        if args.schedule is not None:
-            steps = [(float(step.split(":")[0]), int(step.split(":")[1])) for step in args.schedule.split(",")]
-            lrSchedule = LearningRateScheduler(lambda epoch: schedule_steps(epoch, steps))
-            callbacks.insert(0, lrSchedule)
+            def schedule_steps(epoch, steps):
+                for step in steps:
+                    if step[1] > epoch:
+                        print("Setting learning rate to {}".format(step[0]))
+                        return step[0]
+                print("Setting learning rate to {}".format(steps[-1][0]))
+                return steps[-1][0]
 
-        if args.clr is not None:
-            clr_params = args.clr.split(',')
-            base_lr = float(clr_params[0])
-            max_lr = float(clr_params[1])
-            step = int(clr_params[2])
-            mode = clr_params[3]
-            clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=step, mode=mode)
-            callbacks.append(clr)
+            callbacks = [best_model, EarlyStopping(patience=20, verbose=1, monitor='val_dice_coef_clipped', mode='max')]
 
-        steps_per_epoch = len(all_ids) / args.batch_size + 1
-        if args.steps_per_epoch:
-            steps_per_epoch = args.steps_per_epoch
+            if args.schedule is not None:
+                steps = [(float(step.split(":")[0]), int(step.split(":")[1])) for step in args.schedule.split(",")]
+                lrSchedule = LearningRateScheduler(lambda epoch: schedule_steps(epoch, steps))
+                callbacks.insert(0, lrSchedule)
 
-        model.fit_generator(
-            train_generator,
-            steps_per_epoch=steps_per_epoch,
-            epochs=args.epochs,
-            validation_data=val_generator,
-            validation_steps=len(val_ids),
-            callbacks=callbacks,
-            max_queue_size=30,
-            verbose=1,
-            workers=args.num_workers)
+            if args.clr is not None:
+                clr_params = args.clr.split(',')
+                base_lr = float(clr_params[0])
+                max_lr = float(clr_params[1])
+                step = int(clr_params[2])
+                mode = clr_params[3]
+                clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=step, mode=mode)
+                callbacks.append(clr)
 
-        del model
-        K.clear_session()
-        gc.collect()
+            steps_per_epoch = len(all_ids) / args.batch_size + 1
+            if args.steps_per_epoch:
+                steps_per_epoch = args.steps_per_epoch
+
+            model.fit_generator(
+                train_generator,
+                steps_per_epoch=steps_per_epoch,
+                epochs=args.epochs,
+                validation_data=val_generator,
+                validation_steps=len(val_ids),
+                callbacks=callbacks,
+                max_queue_size=30,
+                verbose=1,
+                workers=args.num_workers)
+
+            # for node in tf.get_default_graph().as_graph_def().node:
+            #     if "training" not in node.name:
+            #         print(node.name)
+
+            vm.Model.save(
+                args.lucid_save_name,
+                input_name='input',
+                image_shape=[args.crop_size, args.crop_size, 3],
+                output_names=['mask/Sigmoid'],
+                image_value_range=[-1, 1]
+            )
+
+            del model
+            K.clear_session()
+            gc.collect()
 
 
 if __name__ == '__main__':

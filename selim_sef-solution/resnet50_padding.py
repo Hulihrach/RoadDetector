@@ -13,7 +13,7 @@ from __future__ import absolute_import
 import os
 import warnings
 
-from keras.applications.imagenet_utils import _obtain_input_shape
+from keras_applications.imagenet_utils import _obtain_input_shape
 from keras.layers import Input
 from keras import layers
 from keras.layers import Dense

@@ -31,6 +31,7 @@ arg('--steps_per_epoch', type=int, default=1000)
 arg('--seed', type=int, default=777)
 arg('--models_dir', default='trained_models')
 arg('--data_dirs', nargs='+')
+arg('--lucid_save_name', type=str, default='lucid_model.pb')
 
 #prediction
 arg('--out_dir_name')

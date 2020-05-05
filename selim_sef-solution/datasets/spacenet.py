@@ -24,13 +24,14 @@ def generate_ids(city_dirs, clahe):
     ids = []
     for city_dir in city_dirs:
         city_id = get_city_id(city_dir)
-        subdir = "MUL-PanSharpen"
+        # subdir = "MUL-PanSharpen"
+        subdir = "PS-RGB"
         #if clahe:
         #    subdir = "CLAHE-MUL-PanSharpen"
         mul_dir = os.path.join(city_dir, subdir)
         for f in os.listdir(mul_dir):
             if f.endswith(".tif"):
-                ids.append((city_id, f.split(".tif")[0].split("MUL-PanSharpen_")[1]))
+                ids.append((city_id, f.split(".tif")[0].split("PS-RGB_")[1]))
     return sorted(ids)
 
 
@@ -41,7 +42,8 @@ def get_groundtruth(city_dirs):
 
         path_to_csv = os.path.join(summary_dir, city_dir.split("/")[-1] + ".csv")
         print("Processing CSV: " + path_to_csv)
-        matrix = pd.read_csv(path_to_csv).as_matrix()
+        # matrix = pd.read_csv(path_to_csv).as_matrix()
+        matrix = pd.read_csv(path_to_csv).values
         for line in matrix:
             id = line[0]
             linestring = line[1]
@@ -106,23 +108,29 @@ class MULSpacenetDataset(Iterator):
                 if city in data_dir:
                     img_name = self.image_name_template.format(id=id)
                     if self.clahe:
-                        data_dir = os.path.join(self.wdata_dir, city_dir_name)
-                        path = os.path.join(data_dir, img_name)
+                        #data_dir = os.path.join(self.wdata_dir, city_dir_name)
+                        #path = os.path.join(data_dir, img_name)
+                        data_dir = self.wdata_dir + '/' + city_dir_name
+                        path = data_dir + '/' + img_name
                     else:
-                        path = os.path.join(data_dir, img_name)
+                        #path = os.path.join(data_dir, img_name)
+                        path = data_dir + '/' + img_name
                     break
 
             arr = tifffile.imread(path)
+            # exit()
+            image = arr
 
-            image = np.stack([arr[..., 4], arr[..., 2], arr[..., 1], arr[..., 0], arr[..., 3], arr[..., 5], arr[..., 6], arr[..., 7]], axis=-1)
+            # image = np.stack([arr[..., 4], arr[..., 2], arr[..., 1], arr[..., 0], arr[..., 3], arr[..., 5], arr[..., 6], arr[..., 7]], axis=-1)
             if self.stretch_and_mean:
                 image = stretch_8bit(image) * 255
-            if self.ohe_city:
-                ohe_city = np.zeros((image.shape[0], image.shape[1], 4), dtype="float32")
-                ohe_city[..., cities.index(city)] = 2047
-                image = np.concatenate([image, ohe_city], axis=-1)
-                image = np.array(image, dtype="float32")
+            # if self.ohe_city:
+            #     ohe_city = np.zeros((image.shape[0], image.shape[1], 4), dtype="float32")
+            #     ohe_city[..., cities.index(city)] = 2047
+            #     image = np.concatenate([image, ohe_city], axis=-1)
+            #     image = np.array(image, dtype="float32")
 
+            id = 'AOI_5_Khartoum_' + id
             lines = self.masks_dict[id]
             mask = np.zeros((image.shape[0], image.shape[1], 1))
             # lines in wkt format, pygeoif

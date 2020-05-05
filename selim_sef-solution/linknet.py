@@ -1,9 +1,9 @@
 import numpy as np
-from keras.layers import Input, Conv2D, MaxPooling2D, Activation, BatchNormalization, add, Conv2DTranspose
-from keras.layers.convolutional import UpSampling2D
-from keras.layers.core import SpatialDropout2D
-from keras.layers.merge import concatenate
-from keras.models import Model
+from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Activation, BatchNormalization, add, Conv2DTranspose
+from tensorflow.keras.layers import UpSampling2D
+from tensorflow.keras.layers import SpatialDropout2D
+from tensorflow.keras.layers import concatenate
+from tensorflow.keras.models import Model
 
 
 def conv_bn_relu(input, num_channel, kernel_size, stride, name, padding='same', activation='relu'):
@@ -83,7 +83,7 @@ def LinkNet(input_shape=(256, 256, 3), classes=1, dropout=0.5, feature_scale=4, 
     layers = [2, 2, 2, 2, 2]
     filters = [64, 128, 256, 512, 512]
 
-    inputs = Input(shape=input_shape)
+    inputs = Input(shape=input_shape, name="input")
     if pretrained_weights:
         print("Using pretrained weights {}".format(pretrained_weights))
     if pretrained_weights and input_shape[-1] > 3:
@@ -124,13 +124,13 @@ def LinkNet(input_shape=(256, 256, 3), classes=1, dropout=0.5, feature_scale=4, 
 
 def linknet_decoder(conv1, enc1, enc2, enc3, enc4, enc5, filters=[64, 128, 256, 512, 512], feature_scale=4, skipFirst=False, transposed_conv=False):
     decoder5 = decoder(enc5, filters[4], filters[3], name='decoder5', feature_scale=feature_scale, transposed_conv=transposed_conv)
-    decoder5 = add([decoder5, enc4])
+    decoder5 = add([decoder5, enc4], name="add_dec5_enc4")
     decoder4 = decoder(decoder5, filters[3], filters[2], name='decoder4', feature_scale=feature_scale, transposed_conv=transposed_conv)
-    decoder4 = add([decoder4, enc3])
+    decoder4 = add([decoder4, enc3], name="add_dec4_enc3")
     decoder3 = decoder(decoder4, filters[2], filters[1], name='decoder3', feature_scale=feature_scale, transposed_conv=transposed_conv)
-    decoder3 = add([decoder3, enc2])
+    decoder3 = add([decoder3, enc2], name="add_dec3_enc2")
     decoder2 = decoder(decoder3, filters[1], filters[0], name='decoder2', feature_scale=feature_scale, transposed_conv=transposed_conv)
-    decoder2 = add([decoder2, enc1])
+    decoder2 = add([decoder2, enc1], name="add_dec2_enc1")
     decoder1 = decoder(decoder2, filters[0], filters[0], name='decoder1', feature_scale=feature_scale, transposed_conv=transposed_conv)
     if skipFirst:
         x = concatenate([conv1, decoder1])

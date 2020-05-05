@@ -1,8 +1,8 @@
 import numpy as np
-from keras import Model, Input
-from keras.layers import UpSampling2D, concatenate, Activation, BatchNormalization, Conv2D, SpatialDropout2D, \
+from tensorflow.keras import Model, Input
+from tensorflow.keras.layers import UpSampling2D, concatenate, Activation, BatchNormalization, Conv2D, SpatialDropout2D, \
     MaxPooling2D, add
-from keras.utils import get_file
+from tensorflow.keras.utils import get_file
 
 import linknet
 import resnet50_padding

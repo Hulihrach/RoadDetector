@@ -18,7 +18,7 @@ import os
 import warnings
 import numpy as np
 from keras.applications import imagenet_utils, InceptionV3
-from keras.applications.imagenet_utils import _obtain_input_shape
+from keras_applications.imagenet_utils import _obtain_input_shape
 from keras.layers import Input
 from keras import layers
 from keras.layers import Dense

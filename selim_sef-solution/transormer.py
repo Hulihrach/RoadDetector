@@ -1,4 +1,5 @@
-from keras.preprocessing.image import transform_matrix_offset_center, apply_transform, random_channel_shift, flip_axis
+from keras.preprocessing.image import apply_affine_transform, random_channel_shift #, flip_axis, transform_matrix_offset_center
+#from keras.preprocessing.image import ImageDataGenerator, DataFrameIterator
 import numpy as np
 
 
@@ -101,41 +102,50 @@ class RandomTransformer:
                                     [0, 0, 1]])
             transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
             transform_matrix_mask = zoom_matrix if transform_matrix_mask is None else np.dot(transform_matrix_mask, zoom_matrix)
+
         if transform_matrix is not None:
             h, w = x.shape[img_row_axis], x.shape[img_col_axis]
             transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
-            x = apply_transform(x, transform_matrix, img_channel_axis, fill_mode=self.fill_mode, cval=self.cval)
+            x = apply_affine_transform(x, transform_matrix, img_channel_axis, fill_mode=self.fill_mode, cval=self.cval)
 
         if transform_matrix_mask is not None:
             h, w = mask.shape[img_row_axis], mask.shape[img_col_axis]
             transform_matrix_mask = transform_matrix_offset_center(transform_matrix_mask, h, w)
-            mask[:, :, :] = apply_transform(mask[:, :, :], transform_matrix_mask, img_channel_axis, fill_mode='constant', cval=0.)
+            mask[:, :, :] = apply_affine_transform(mask[:, :, :], transform_matrix_mask, img_channel_axis, fill_mode='constant', cval=0.)
         if self.channel_shift_range != 0:
             x = random_channel_shift(x, self.channel_shift_range, img_channel_axis)
-        if self.horizontal_flip:
-            if np.random.random() < 0.5:
-                x = flip_axis(x, img_col_axis)
-                mask = flip_axis(mask, img_col_axis)
-
-        if self.vertical_flip:
-            if np.random.random() < 0.5:
-                x = flip_axis(x, img_row_axis)
-                mask = flip_axis(mask, img_row_axis)
+        # if self.horizontal_flip:
+        #     if np.random.random() < 0.5:
+        #         x = flip_axis(x, img_col_axis)
+        #         mask = flip_axis(mask, img_col_axis)
+        #
+        # if self.vertical_flip:
+        #     if np.random.random() < 0.5:
+        #         x = flip_axis(x, img_row_axis)
+        #         mask = flip_axis(mask, img_row_axis)
 
         return x, mask
 
 def do_tta(x, tta_types):
-    if 'hflip' in tta_types:
-        x = flip_axis(x, 1)
-    if 'vflip' in tta_types:
-        x = flip_axis(x, 0)
+    # if 'hflip' in tta_types:
+    #     x = flip_axis(x, 1)
+    # if 'vflip' in tta_types:
+    #     x = flip_axis(x, 0)
     if 'channel_shift' in tta_types:
         x = random_channel_shift(x, 0.2, 2)
     return x
 
 def undo_tta(x, tta_types):
-    if 'hflip' in tta_types:
-        x = flip_axis(x, 1)
-    if 'vflip' in tta_types:
-        x = flip_axis(x, 0)
+    # if 'hflip' in tta_types:
+    #     x = flip_axis(x, 1)
+    # if 'vflip' in tta_types:
+    #     x = flip_axis(x, 0)
     return x
+
+def transform_matrix_offset_center(matrix, x, y):
+    o_x = float(x) / 2 + 0.5
+    o_y = float(y) / 2 + 0.5
+    offset_matrix = np.array([[1, 0, o_x], [0, 1, o_y], [0, 0, 1]])
+    reset_matrix = np.array([[1, 0, -o_x], [0, 1, -o_y], [0, 0, 1]])
+    transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
+    return transform_matrix
