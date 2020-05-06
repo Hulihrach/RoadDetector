@@ -57,9 +57,9 @@ def main():
             if args.city:
                 city = args.city.lower()
             best_model_file = '{}/{}_{}_{}.h5'.format(args.models_dir, encoded_alias, city, args.network)
-            channels = 3
-            # if args.ohe_city:
-            #     channels = 12
+            channels = 8
+            if args.ohe_city:
+                channels = 12
             model = make_model(args.network, (args.crop_size, args.crop_size, channels))
 
             if args.weights is None:
@@ -90,7 +90,7 @@ def main():
             #     template = 'CLAHE-MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
             # else:
             #     template = 'MUL-PanSharpen/MUL-PanSharpen_{id}.tif'
-            template = 'PS-RGB/SN3_roads_train_AOI_5_Khartoum_PS-RGB_{id}.tif'
+            template = 'PS-MS/SN3_roads_train_AOI_5_Khartoum_PS-MS_{id}.tif'
 
             train_generator = MULSpacenetDataset(
                 data_dirs=args.data_dirs,

@@ -119,16 +119,16 @@ class MULSpacenetDataset(Iterator):
 
             arr = tifffile.imread(path)
             # exit()
-            image = arr
+            # image = arr
 
-            # image = np.stack([arr[..., 4], arr[..., 2], arr[..., 1], arr[..., 0], arr[..., 3], arr[..., 5], arr[..., 6], arr[..., 7]], axis=-1)
+            image = np.stack([arr[..., 4], arr[..., 2], arr[..., 1], arr[..., 0], arr[..., 3], arr[..., 5], arr[..., 6], arr[..., 7]], axis=-1)
             if self.stretch_and_mean:
                 image = stretch_8bit(image) * 255
-            # if self.ohe_city:
-            #     ohe_city = np.zeros((image.shape[0], image.shape[1], 4), dtype="float32")
-            #     ohe_city[..., cities.index(city)] = 2047
-            #     image = np.concatenate([image, ohe_city], axis=-1)
-            #     image = np.array(image, dtype="float32")
+            if self.ohe_city:
+                ohe_city = np.zeros((image.shape[0], image.shape[1], 4), dtype="float32")
+                ohe_city[..., cities.index(city)] = 2047
+                image = np.concatenate([image, ohe_city], axis=-1)
+                image = np.array(image, dtype="float32")
 
             id = 'AOI_5_Khartoum_' + id
             lines = self.masks_dict[id]
